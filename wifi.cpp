@@ -3,9 +3,10 @@
 // Statics
 char Wifi::_mac_addr_cstr[]{};
 std::mutex Wifi::_mutx{};
-Wifi::state_e Wifi::_state{state_e::NOT_INITIALIZED};
+Wifi::state_e Wifi::_state = state_e::NOT_INITIALIZED;
 wifi_init_config_t Wifi::_wifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
 wifi_config_t Wifi::_wifi_cfg{};
+int Wifi::_s_retry_num = 0;
 
 // Wifi Constructor
 Wifi::Wifi(void)
@@ -40,6 +41,11 @@ void Wifi::wifi_event_handler(void *arg, esp_event_base_t event_base, int32_t ev
         case WIFI_EVENT_STA_DISCONNECTED: {
             std::lock_guard<std::mutex> state_guard(_mutx);
             _state = state_e::DISCONNECTED;
+            if (_s_retry_num < ESP_WIFI_MAXIMUM_RETRY){
+                esp_wifi_connect();
+                _s_retry_num++;
+                ESP_LOGI(strLogTag, "retry to connect to the AP");
+            }
             break;
         }
 
@@ -124,103 +130,38 @@ esp_err_t Wifi::_init() {
     if (state_e::NOT_INITIALIZED == _state) {
         // start establishing connection when not initialized
 
-        obj_err_status |= esp_netif_init();
+        ESP_ERROR_CHECK(esp_netif_init());
+        ESP_LOGI(strLogTag, "netif initialized correctly.");
 
-        if (obj_err_status != ESP_OK) {
-            // not initialized correctly.
-            ESP_LOGW(strLogTag, "netif already initialized, try to initialize it again.");
-            if (esp_netif_deinit() == ESP_OK) {
-                obj_err_status = esp_netif_init();
-                if ( obj_err_status == ESP_OK) {
-                    ESP_LOGI(strLogTag, "netif reinitialized successful.");
-                } else {
-                    ESP_LOGI(strLogTag, "netif not reinitialized successful. abort wifi connection.");
-                }
-            }
-        } else {
-            ESP_LOGI(strLogTag, "netif initialized correctly.");
-        };
+        ESP_ERROR_CHECK(esp_event_loop_create_default());
+        ESP_LOGI(strLogTag, "Default Event loops are created.");
 
-        if (obj_err_status == ESP_OK) {
-            // only create default wifi sta when netif successful.
-            const esp_netif_t *const p_netif = esp_netif_create_default_wifi_sta();
+        const esp_netif_t *const p_netif = esp_netif_create_default_wifi_sta();
+        assert(p_netif);
 
-            if (!p_netif) {
-                obj_err_status = ESP_FAIL;
-                ESP_LOGW(strLogTag, "User init default station not successful.");
-            } else {
-                ESP_LOGI(strLogTag, "User init default station successful.");
-            }
-        }
+        ESP_ERROR_CHECK(esp_wifi_init(&_wifi_init_cfg));
+        
+        ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, nullptr, nullptr));
+        ESP_LOGI(strLogTag, "Wifi event handler registered successfully.");
 
-        if (obj_err_status == ESP_OK) {
-            // init esp wifi, when previous step run successfully.
-            obj_err_status = esp_wifi_init(&_wifi_init_cfg);
-            if (obj_err_status == ESP_OK) {
-                ESP_LOGI(strLogTag, "Wifi init settings set successfully.");
-            } else {
-                ESP_LOGW(strLogTag, "Wifi init settings not set successfully.");
-            }
+        ESP_ERROR_CHECK(esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, &ip_event_handler, nullptr, nullptr));
+        ESP_LOGI(strLogTag, "IP event handler registered successfully.");
 
-        }
+        ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_STA));
+        ESP_LOGI(strLogTag, "Set wifi mode to Station successfully.");
 
-        if (obj_err_status == ESP_OK) {
-            // register wifi event handler when previous step run successfully.
-            obj_err_status = esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, nullptr, nullptr);
-            if (obj_err_status == ESP_OK) {
-                ESP_LOGI(strLogTag, "Wifi event handler registered successfully.");
-            } else {
-                ESP_LOGW(strLogTag, "Wifi event handler not registered successfully.");
-            }
-        }
+        // set auth mode settings for sta when previous step run successfully.
+        _wifi_cfg.sta.threshold.authmode = ESP_WIFI_SCAN_AUTH_MODE_THRESHOLD;
+        _wifi_cfg.sta.pmf_cfg.capable = true;
+        _wifi_cfg.sta.pmf_cfg.required = false;
 
-        if (obj_err_status == ESP_OK) {
-            // register ip_event handler when previous step run successfully.
-            obj_err_status = esp_event_handler_instance_register(IP_EVENT, ESP_EVENT_ANY_ID, &ip_event_handler, nullptr, nullptr);
-            if (obj_err_status == ESP_OK) {
-                ESP_LOGI(strLogTag, "IP event handler registered successfully.");
-            } else {
-                ESP_LOGW(strLogTag, "IP event handler not registered successfully.");
-            }
-        }
+        ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &_wifi_cfg));
+        ESP_LOGI(strLogTag, "Set auth mode settings for Station successfully.");
+        ESP_ERROR_CHECK(esp_wifi_start());
+        ESP_LOGI(strLogTag, "wifi initialized successfully, ready for connecting.");
 
-        if (obj_err_status == ESP_OK) {
-            // set wifi mode when previous step run successfully.
-            obj_err_status = esp_wifi_set_mode(WIFI_MODE_STA);
-            if (obj_err_status == ESP_OK) {
-                ESP_LOGI(strLogTag, "Set wifi mode to Station successfully.");
-            } else {
-                ESP_LOGW(strLogTag, "Set wifi mode to Station not successfully.");
-            }
+        _state = state_e::INITIALIZED;
 
-        }
-
-        if (ESP_OK == obj_err_status) {
-            // set auth mode settings for sta when previous step run successfully.
-            _wifi_cfg.sta.threshold.authmode = WIFI_AUTH_WPA2_PSK;
-            _wifi_cfg.sta.pmf_cfg.capable = true;
-            _wifi_cfg.sta.pmf_cfg.required = false;
-
-            obj_err_status = esp_wifi_set_config(WIFI_IF_STA, &_wifi_cfg);
-            if (obj_err_status == ESP_OK) {
-                ESP_LOGI(strLogTag, "Set auth mode settings for Station successfully.");
-            } else {
-                ESP_LOGW(strLogTag, "Set auth mode settings for Station not successfully.");
-            }
-        }
-
-        if (ESP_OK == obj_err_status) {
-            // start wifi when previous step run successfully.
-            obj_err_status = esp_wifi_start();
-        }
-
-        if (ESP_OK == obj_err_status) {
-            // everything runs smooth
-            ESP_LOGI(strLogTag, "wifi initialized successfully, ready for connecting.");
-            _state = state_e::INITIALIZED;
-        } else {
-            ESP_LOGW(strLogTag, "Wifi not initialized successfully.");
-        }
     } else if (_state == state_e::ERROR) {
         // set state to not initialized, when error
         ESP_LOGW(strLogTag, "Error state in Wifi, set back to NOT_INITIALIZED.");

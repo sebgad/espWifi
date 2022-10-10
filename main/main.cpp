@@ -1,12 +1,14 @@
 #include <stdio.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
+#include "esp_wifi.h"
 #include "esp_system.h"
 #include "esp_spi_flash.h"
 #include "wifi.h"
 #include <string>
 #include <iostream>
 #include "nvs_flash.h"
+
 
 Wifi::state_e objWifiState = Wifi::state_e::NOT_INITIALIZED;
 Wifi objWifi;
@@ -18,14 +20,10 @@ extern "C" {
 
 void app_main(void)
 {
-    // Create default system event loops, e.g. for wifi events
-    esp_event_loop_create_default();
     // initialize non-volatile memory
     nvs_flash_init();
 
     // set credentials for wifi
-    objWifi.SetCredentials("FRITZ!Box_SY_2_4", "992979374447774325495525");
-    // initialize wifi
     objWifi.Init();
 
     while(1){

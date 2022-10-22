@@ -8,6 +8,6 @@ else()
   set(CMAKE_CXX_STANDARD 17)
   set(EXTRA_COMPONENT_DIRS include)
   include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-  project(smartWifi)
+  project(espWifi)
 endif()
 

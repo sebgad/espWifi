@@ -41,6 +41,14 @@
 #define WIFI_CONNECTED_BIT BIT0
 #define WIFI_FAIL_BIT      BIT1
 
+enum e_WifiState
+{
+    WIFI_INIT = 0x0,
+    WIFI_CONNECT_STA = 0x1,
+    WIFI_DISCONNECT = 0x2,
+    WIFI_CREATE_AP = 0x3
+};
+
 class espWifi
 {
 public:
@@ -60,4 +68,5 @@ public:
     void SetCredentials(const char *ssid, const char *password);
     void Init();
     esp_err_t Begin(void);
+    static enum e_WifiState eStateWifi;
 };

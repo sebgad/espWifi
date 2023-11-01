@@ -3,7 +3,7 @@
 // Define Statics for referencing (necessary for code compilation)
 EventGroupHandle_t espWifi::_objWifiGrpHdle;
 int espWifi::_iRetryNumAtt = 0;
-static enum e_WifiState eStateWifi = WIFI_INIT;
+volatile enum e_WifiState eStateWifi = WIFI_INIT;
 
 // Wifi Constructor
 espWifi::espWifi(void)

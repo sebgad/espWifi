@@ -12,9 +12,6 @@
 #include "esp_log.h"
 #include "nvs_flash.h"
 
-#include "lwip/err.h"
-#include "lwip/sys.h"
-
 #define strLogTag "espWifi"
 
 #if CONFIG_ESP_WIFI_AUTH_OPEN

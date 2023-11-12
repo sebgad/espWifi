@@ -65,7 +65,7 @@ void espWifi::ip_event_handler(void *arg, esp_event_base_t event_base, int32_t e
 void espWifi::_init() {
     /**
      * @brief Initialize wifi connection, default STA mode
-     * 
+     *
      * @return  NONE
      */
 
@@ -74,7 +74,7 @@ void espWifi::_init() {
     ESP_ERROR_CHECK(esp_netif_init());
     ESP_LOGI(strLogTag, "netif initialized correctly.");
 
-    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    ESP_ERROR_CHECK_WITHOUT_ABORT(esp_event_loop_create_default());
     ESP_LOGI(strLogTag, "Default Event loops are created.");
 
     const esp_netif_t *const p_netif = esp_netif_create_default_wifi_sta();
@@ -83,7 +83,7 @@ void espWifi::_init() {
     wifi_init_config_t obj_wifi_init_cfg = WIFI_INIT_CONFIG_DEFAULT();
 
     ESP_ERROR_CHECK(esp_wifi_init(&obj_wifi_init_cfg));
-    
+
     ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID, &wifi_event_handler, nullptr, nullptr));
     ESP_LOGI(strLogTag, "Wifi event handler registered successfully.");
 

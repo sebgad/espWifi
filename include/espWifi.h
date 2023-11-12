@@ -1,7 +1,7 @@
 // inspired by https://github.com/espressif/esp-idf/tree/fa5d0a351343b45ee06d221b7c29028672a4c3c2/examples/wifi/getting_started/station
 
-#include <cmath>
-#include <cstring>
+#include <math.h>
+#include <string.h>
 #include <string.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"

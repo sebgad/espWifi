@@ -48,8 +48,6 @@ enum e_WifiState
 
 class espWifi
 {
-public:
-
 private:
     static void _init();
     static EventGroupHandle_t _objWifiGrpHdle;
